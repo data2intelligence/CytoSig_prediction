@@ -598,7 +598,6 @@ def CytoSig_run_COVID19_singlecell():
         data = os.path.join(sc_path, dataset + '.pickle.gz')
         output = os.path.join(output_path, dataset + '.signal')
         
-        """
         data = pandas.read_pickle(data)
         
         # normalize by health controls
@@ -608,11 +607,10 @@ def CytoSig_run_COVID19_singlecell():
         
         beta, se, zscore, pvalue = CytoSig.ridge_significance_test(signature, data, alpha, alternative, nrand, 1, True, False, verbose_flag)
         zscore.to_csv(output, sep='\t', index_label=False)
-        """
         
         qthres = 0.05
         # please see Methods section of our paper for neutrophils
-        if dataset == 'EGAS00001004571_cohort1': qthres = 0.051
+        if dataset == 'EGAS00001004571_cohort1': qthres = 0.052
         
         analyze_three_level_significance(output, levels, qthres=qthres)
 
@@ -681,14 +679,23 @@ def analyze_COVID19_SC_Severity_joint_heatmap(top_value = 4):
   
 
 def main():
-    #Survival_Analysis_Tumor()
+    # Figure 4e & Extended Data Figure 4 
+    Survival_Analysis_Tumor()
     
-    #CytoSig_run_Inflam()
+    # prepare for Figure 4a-c
+    CytoSig_run_Inflam()
     
-    #plot_canakinumab_GSE80060_response_activity()
-    #plot_IFNK_GSE72754_response_activity()
+    # Figure 4a
+    plot_canakinumab_GSE80060_response_activity()
     
+    # Figure 4b
+    plot_IFNK_GSE72754_response_activity()
+    
+    # prepare for Figure 6 and generate Figure 6f
     CytoSig_run_COVID19_singlecell()
+    
+    # Figure 6g
+    analyze_COVID19_SC_Severity_joint_heatmap()
     
     return 0
 
