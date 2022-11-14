@@ -2,10 +2,11 @@
 
 import os, pathlib, tarfile
 import urllib.request
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 base_path = pathlib.Path(__file__).parent.absolute()
 base_path = os.path.dirname(base_path)
-
 
 for url in ['https://hpc.nih.gov/~Jiang_Lab/CytoSig/CytoSig_prediction/data.tar.gz']:
     f = os.path.basename(url.rstrip('/'))

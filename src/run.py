@@ -451,9 +451,13 @@ def CytoSig_run_Inflam():
     # run CytoSig for all datasets
     diff_lst = glob(os.path.join(fpath, '*.diff.1'))
     
+    merge = []
+    
     for fprefix in diff_lst:
-        print(os.path.basename(fprefix))
+        title = os.path.basename(fprefix)
+        print(title)
         
+        """
         data = pandas.read_csv(fprefix, sep='\t', index_col=0)
         beta, se, zscore, pvalue = CytoSig.ridge_significance_test(signature, data, alpha, alternative, nrand, 1, True, False, verbose_flag)
         zscore.to_csv(fprefix + '.signal', sep='\t', index_label=False)
@@ -464,6 +468,18 @@ def CytoSig_run_Inflam():
             
             beta, se, zscore, pvalue = CytoSig.ridge_significance_test(signature, data, alpha, alternative, nrand, 1, True, False, verbose_flag)
             zscore.to_csv(fprefix + '.sep.signal', sep='\t', index_label=False)
+        """
+        
+        # merge results
+        result = pandas.read_csv(fprefix + '.signal', sep='\t', index_col=0)
+        result.columns = title.split('.')[0] + '_' + result.columns
+        merge.append(result)
+    
+    merge = pandas.concat(merge, axis=1)
+    assert merge.columns.value_counts().max() == 1
+    
+    merge.to_csv(os.path.join(fpath, 'merge'), sep='\t', index_label=False)
+    
 
 
 
@@ -598,6 +614,10 @@ def CytoSig_run_COVID19_singlecell():
         data = os.path.join(sc_path, dataset + '.pickle.gz')
         output = os.path.join(output_path, dataset + '.signal')
         
+        if not os.path.exists(data):
+            sys.stderr.write('Cannot find converted pickle for %s\n' % dataset)
+            continue
+        
         data = pandas.read_pickle(data)
         
         # normalize by health controls
@@ -627,6 +647,10 @@ def analyze_COVID19_SC_Severity_joint_heatmap(top_value = 4):
     for dataset in datasets:
         output = os.path.join(output_path, dataset + '.signal')
         
+        if not os.path.exists(output + '.triplet'):
+            sys.stderr.write('Cannot find result for %s\n' % dataset)
+            continue
+        
         mat = pandas.read_csv(output + '.triplet', sep='\t', index_col=0)
         merge.append(mat)
         
@@ -637,6 +661,10 @@ def analyze_COVID19_SC_Severity_joint_heatmap(top_value = 4):
         cnt_map = cnt_map.loc[cnt_map >= N/3.0]
         
         included.update(cnt_map.index)
+    
+    if len(merge) == 0:
+        sys.stderr.write('Nothing to merge\n')
+        return
     
     merge = pandas.concat(merge, axis=1, join='inner')
     merge = merge.loc[included].transpose()
@@ -676,7 +704,109 @@ def analyze_COVID19_SC_Severity_joint_heatmap(top_value = 4):
     plt.savefig(out + '.significant.pdf', bbox_inches='tight', transparent=True)    
 
 
-  
+
+def get_map_lst(vmap, key, flag_map=False):
+    lst = vmap.get(key)
+    
+    if lst is None:
+        if flag_map:
+            lst = vmap[key] = {}
+        else:
+            lst = vmap[key] = []
+        
+    return lst
+
+
+def plot_blockade_activity_diff():
+    output = os.path.join(output_path, 'blockade_diff')
+    
+    info = pandas.read_excel(os.path.join(base_path, 'signal.xlsx'), engine='openpyxl')
+    info.drop(['Comment'], axis=1, inplace=True)
+    info.dropna(inplace=True)
+    
+    # VEGFA has clinical response data available, thus ignore its Xenograft studies
+    info = info.loc[(info['Disease'] != 'Xenograft') | ((info['Disease'] == 'Xenograft') & (info['Target'] != 'VEGFA'))]
+    
+    # load previous CytoSig scores
+    result = pandas.read_csv(os.path.join(bulk_path, 'inflam', 'merge'), sep='\t', index_col=0)
+    
+    dataset_map = {}
+    
+    for _, fields in info.iterrows():
+        dataset = fields['Dataset']
+        condition = fields['Condition']
+        targets = fields['Target'].split(',')
+        targets = [v.strip() for v in targets]
+        #treatment = fields['Treatment']
+        #disease = fields['Disease']
+        
+        response = fields['Response']
+        
+        for target in targets:
+            if target not in result.index: continue    
+            v = result.loc[target, dataset + '_' + condition]
+            
+            # for all responder cases, plot their diff values
+            if response != 'No':
+                response_map = get_map_lst(dataset_map, target + '\t' + dataset, flag_map=True)
+                lst = get_map_lst(response_map, response)
+                lst.append(v)
+    
+    target_map = {}
+    
+    for dataset, response_map in dataset_map.items():
+        target, dataset = dataset.split('\t')
+            
+        if len(response_map) > 1:
+            assert 'Yes' in response_map
+            lst = response_map['Yes']
+        else:
+            assert ('Yes' in response_map) or ('Unclear' in response_map)
+            lst = list(response_map.values())[0]
+        
+        # dataset-level median
+        v = numpy.median(lst)
+        
+        lst = target_map.get(target)
+        if lst is None: lst = target_map[target] = []
+        lst.append(v)
+    
+    score_map = {}
+    for target, lst in target_map.items(): score_map[target] = numpy.median(lst)
+    score_map = pandas.Series(score_map).sort_values()
+    
+    p = stats.wilcoxon(score_map)[1]
+    
+    # create target merge orders
+    accuracy_vthres = -1    
+    fig = plt.figure(figsize=(1.5*figure_width, figure_width), frameon=False)
+    
+    for i, target in enumerate(score_map.index):
+        lst = target_map[target]
+            
+        lst = [max(v, -10) for v in lst]
+        
+        x = numpy.random.normal(i, 0.1, size= len(lst))
+        plt.plot(x, lst, marker='o', linestyle='none', markersize=10, color=colors_default[0])    
+        plt.axvline(i+0.5, linestyle='--', color='grey', lw=1)
+    
+    plt.axhline(0, color='grey', lw=1)
+    plt.axhline(accuracy_vthres, linestyle='--')
+    plt.text(0, accuracy_vthres - 1, 'v = %d' % accuracy_vthres)
+    
+    plt.xticks(range(score_map.shape[0]), score_map.index, rotation=90)
+    plt.tick_params(pad=10)
+    plt.ylabel('Activity Diff')
+    
+    plt.title('accuracy = %.2f , p = %.1e' % ((score_map < accuracy_vthres).mean(), p), fontsize=font_size)
+    
+    fig.savefig(output + '.pdf', bbox_inches='tight', transparent=True)
+    plt.close(fig)
+
+
+    
+    
+ 
 
 def main():
     # Figure 4e & Extended Data Figure 4 
@@ -690,6 +820,9 @@ def main():
     
     # Figure 4b
     plot_IFNK_GSE72754_response_activity()
+    
+    # Figure 4c
+    plot_blockade_activity_diff()
     
     # prepare for Figure 6 and generate Figure 6f
     CytoSig_run_COVID19_singlecell()

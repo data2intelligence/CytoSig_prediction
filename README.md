@@ -7,7 +7,8 @@ run "./download.py"
   
 The starting data will be available in the folder data, named with bulk, single_cell, and output  
 
-# Stage 2: convert single-cell data to CytoSig input format  
+# Stage 2: convert single-cell data to CytoSig input format
+**This step is optional if you are only interested in bulk data analysis in Figure 4**     
 run "./convert_sc_data.py"  
 **Note**: This step needs a CPU with large memory of 64G as the dataset EGAS00001004571 contains many single cells.  
 
@@ -16,9 +17,9 @@ This program will convert both datasets to python pickles of dense matrices as C
 
 # Stage 3: predict CytoSig signaling activity and generate figures  
 run "./run.py"  
-This step needs a CPU with large memory of 64G as the dataset EGAS00001004571 contains many single cells.  
+If you converted single-cell data in step 2, this step will need a CPU with large memory of 64G as the dataset EGAS00001004571 contains many single cells.  
 The relevant figure numbers are labeled above each function.  
 
 **Task 1**: bulk data from tumor and inflammatory disease studies  
 
-**Task 2**: single-cell data from COVID19 studies  
+**Task 2**: single-cell data from COVID19 studies (only triggered if you have run the optional stage 2)  
