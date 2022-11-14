@@ -457,7 +457,6 @@ def CytoSig_run_Inflam():
         title = os.path.basename(fprefix)
         print(title)
         
-        """
         data = pandas.read_csv(fprefix, sep='\t', index_col=0)
         beta, se, zscore, pvalue = CytoSig.ridge_significance_test(signature, data, alpha, alternative, nrand, 1, True, False, verbose_flag)
         zscore.to_csv(fprefix + '.signal', sep='\t', index_label=False)
@@ -468,7 +467,6 @@ def CytoSig_run_Inflam():
             
             beta, se, zscore, pvalue = CytoSig.ridge_significance_test(signature, data, alpha, alternative, nrand, 1, True, False, verbose_flag)
             zscore.to_csv(fprefix + '.sep.signal', sep='\t', index_label=False)
-        """
         
         # merge results
         result = pandas.read_csv(fprefix + '.signal', sep='\t', index_col=0)
