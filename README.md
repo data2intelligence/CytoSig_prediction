@@ -8,7 +8,8 @@ run "./download.py"
 The starting data will be available in the folder data, named with bulk, single_cell, and output  
 
 # Stage 2: convert single-cell data to CytoSig input format
-**This step is optional if you are only interested in bulk data analysis in Figure 4**     
+**This step is optional if you are only interested in bulk data analysis in Figure 4. Just jump to Stage 3.**     
+  
 run "./convert_sc_data.py"  
 **Note**: This step needs a CPU with large memory of 64G as the dataset EGAS00001004571 contains many single cells.  
 
